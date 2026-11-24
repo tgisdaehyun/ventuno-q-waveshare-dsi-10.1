@@ -125,8 +125,14 @@ To get the splash on the panel early, add the lines from `config/initramfs-modul
 
 The carrier's speakers hang on the Line Out of the board's MAX98091 codec.
 
-- `config/lineout.service` → `/etc/systemd/system/`, then `sudo systemctl enable --now lineout`.
-  It selects the `Lineout` device of the stock ALSA UCM profile once the sound card is up.
+- `config/lineout.service` → `/etc/systemd/system/`, then `sudo systemctl enable --now lineout`
+  and `sudo alsactl store`. It selects the `Lineout` device of the stock ALSA UCM profile once the
+  sound card is up, and it keeps the codec's DAC and line output powered even when no stream is
+  open. Without that, every open/close of the PCM power-cycles the output stage (PipeWire alone
+  does it three times while probing the card at start-up), and each cycle is a loud pop on the
+  speakers. The trick is a muted ADC → sidetone → DAC route: for the kernel's power management
+  (DAPM) that is an active path, so nothing is switched off, while no input signal reaches the
+  speakers.
 - PipeWire offers no UCM profile for this card, so the desktop only shows "Dummy Output".
   `config/51-lineout.lua` → `~/.config/wireplumber/main.lua.d/` switches the card to the
   `pro-audio` profile, makes PCM 0 the default sink and stops it from being suspended

@@ -1,5 +1,5 @@
 [Unit]
-Description=route MAX98091 playback to Line Out (Waveshare carrier speakers)
+Description=route MAX98091 playback to Line Out (Waveshare carrier speakers), keep the codec output powered
 After=sound.target
 
 [Service]
@@ -7,6 +7,18 @@ Type=oneshot
 # the sound card registers late (after the audio DSP is up): wait for it
 ExecStartPre=/bin/sh -c "for i in $$(seq 90); do [ -e /proc/asound/monacogertrude ] && exit 0; sleep 1; done; exit 1"
 ExecStart=/usr/bin/alsaucm -c monaco-gertrude set _verb HiFi set _enadev Lineout
+# Keep DAC + line output (and the chip itself, SHDN) powered with no stream open: a muted
+# ADC -> sidetone -> DAC path counts as an active route for DAPM. Without it every PCM open/close
+# (PipeWire probes the card several times at start-up) power-cycles the output stage = loud pops.
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=Digital Sidetone Volume" 0
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=LINEA Volume" 0
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=LINEB Volume" 0
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=LINEA Mixer IN1 Switch" on
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=LINEB Mixer IN2 Switch" on
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=Left ADC Mixer LINEA Switch" on
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=Right ADC Mixer LINEB Switch" on
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=STENL Mux" "Sidetone Left"
+ExecStartPost=/usr/bin/amixer -q -c monacogertrude cset "name=STENR Mux" "Sidetone Right"
 RemainAfterExit=yes
 TimeoutStartSec=120
 
