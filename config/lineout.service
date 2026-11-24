@@ -1,0 +1,14 @@
+[Unit]
+Description=route MAX98091 playback to Line Out (Waveshare carrier speakers)
+After=sound.target
+
+[Service]
+Type=oneshot
+# the sound card registers late (after the audio DSP is up): wait for it
+ExecStartPre=/bin/sh -c "for i in $$(seq 90); do [ -e /proc/asound/monacogertrude ] && exit 0; sleep 1; done; exit 1"
+ExecStart=/usr/bin/alsaucm -c monaco-gertrude set _verb HiFi set _enadev Lineout
+RemainAfterExit=yes
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep the carrier speaker amplifier awake (inaudible 20 Hz signal, avoids wake-up pops)
+After=pipewire.service wireplumber.service
+Wants=pipewire.service
+
+[Service]
+ExecStart=/bin/sh -c "exec %h/.local/bin/amp-keepalive.py | exec pw-cat --playback --format s16 --rate 48000 --channels 2 --media-role Notification -P node.name=amp-keepalive -P media.name=amp-keepalive -"
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

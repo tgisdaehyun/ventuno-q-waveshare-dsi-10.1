@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Arduino VENTUNO Q (arduino,monza) + Waveshare UNO-Q-DSI-TOUCH-10.1A
+ * (10.1-DSI-TOUCH-A panel, 800x1280, JD9365DA, Goodix touch) on JMEDIA/JMISC.
+ * Ported from Arduino's UNO Q overlay qrb2210-arduino-imola-carrier-media-panel-10in_touch_a-dsi.
+ *
+ * Board facts (schematic ABX00181 sheet VIDEO + pinout p5):
+ *  - The single DSI goes through a mux whose select is the HDMI hot-plug line: with no HDMI
+ *    cable the lanes go to JMEDIA, so nothing has to be switched from software.
+ *  - Panel MCU 0x45 / Goodix 0x5d / PCA9555 0x26 sit on JMEDIA 51/53 = GPIO58 SCL / GPIO57 SDA.
+ *    Those are the pins of CamX CCI0 master 0 (CAMERA0), which is not a Linux I2C adapter, so the
+ *    bus is bit-banged like the board's own cci1_i2c1_gpio and CCI0 m0 is parked on GPIO function.
+ *    => CAMERA0 sensors cannot be reached while this overlay is active.
+ *  - ADV7535 (HDMI) shares the DSI host, so it and its audio link are disabled here.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	ws_panel_avdd: regulator-ws-panel-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "ws-panel-avdd";
+		gpios = <&wsgpio 0 0>;
+		enable-active-high;
+	};
+
+	ws_panel_iovcc: regulator-ws-panel-iovcc {
+		compatible = "regulator-fixed";
+		regulator-name = "ws-panel-iovcc";
+		gpios = <&wsgpio 4 0>;
+		enable-active-high;
+	};
+
+	regulator-ws-panel-vcc {
+		compatible = "regulator-fixed";
+		regulator-name = "ws-panel-vcc";
+		gpios = <&wsgpio 8 0>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+	jmedia_i2c_gpio: jmedia-i2c-gpio {
+		compatible = "i2c-gpio";
+		/* GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN */
+		sda-gpios = <&tlmm 57 6>;
+		scl-gpios = <&tlmm 58 6>;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		wsgpio: gpio@45 {
+			compatible = "waveshare,dsi-touch-gpio";
+			reg = <0x45>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		touchscreen@5d {
+			compatible = "goodix,gt9271";
+			reg = <0x5d>;
+			/*
+			 * No reset-gpios: the 6.8 goodix driver wants to switch the line to input,
+			 * which the output-only panel MCU rejects (-EIO). The MCU driver releases
+			 * the touch reset (bit 9) at probe. No IRQ line either: polling mode.
+			 */
+		};
+	};
+};
+
+&tlmm {
+	jmedia_i2c_sda_gpio: jmedia-i2c-sda-gpio-state {
+		pins = "gpio57";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	jmedia_i2c_scl_gpio: jmedia-i2c-scl-gpio-state {
+		pins = "gpio58";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
+
+/* CamX CCI0: master 0 active/suspend states no longer switch GPIO57/58 to the CCI function. */
+&{/soc@0/qcom,cci0@ac13000} {
+	pinctrl-0 = <&jmedia_i2c_sda_gpio &jmedia_i2c_scl_gpio>;
+	pinctrl-1 = <&jmedia_i2c_sda_gpio &jmedia_i2c_scl_gpio>;
+};
+
+/* CAMERA0 sensor slots hang off CCI0 master 0, which has no pins any more: stop CamX probing them
+ * (every probe was a CCI timeout in the log, retried every 3 s). */
+&{/soc@0/qcom,cci0@ac13000/qcom,cam-sensor23} {
+	status = "disabled";
+};
+
+&{/soc@0/qcom,cci0@ac13000/qcom,cam-sensor24} {
+	status = "disabled";
+};
+
+&adv7535 {
+	status = "disabled";
+};
+
+&{/sound/hdmi-mi2s-playback-dai-link} {
+	status = "disabled";
+};
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "waveshare,10.1-dsi-touch-a", "jadard,jd9365da-h3";
+		reg = <0>;
+		reset-gpios = <&wsgpio 1 1>;	/* GPIO_ACTIVE_LOW */
+		vccio-supply = <&ws_panel_iovcc>;
+		vdd-supply = <&ws_panel_avdd>;
+		backlight = <&wsgpio>;
+
+		port {
+			ws_panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&ws_panel_in>;
+	data-lanes = <0 1 2 3>;
+};
