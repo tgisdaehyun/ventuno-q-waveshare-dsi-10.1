@@ -113,13 +113,13 @@ Copy `config/grub.d-zz-ws-dsi.cfg` to `/etc/default/grub.d/zz-ws-dsi.cfg`, adjus
   the plymouth splash and GNOME together. With this set, do **not** also rotate the display in
   GNOME, or it is rotated twice. Which of the two you want only depends on which way round the
   unit sits; ours is flipped so the ports stay reachable.
-- `panel_jadard_jd9365da_h3.ws_vrefresh=68` sets the default refresh rate, `ws_sweep=1` adds
+- `panel_jadard_jd9365da_h3.ws_vrefresh=72` sets the default refresh rate, `ws_sweep=1` adds
   48–72 Hz as selectable modes in *Settings > Displays*.
 
 To get the splash on the panel early, add the lines from `config/initramfs-modules.snippet` to
 `/etc/initramfs-tools/modules` and run `sudo update-initramfs -u`.
 
-`config/monitors.xml.snippet` is the GNOME entry we ended up with (scale 1.25, 68 Hz).
+`config/monitors.xml.snippet` is the GNOME entry we ended up with (scale 1.25, 72 Hz).
 
 ### 5. Speakers
 
@@ -155,7 +155,7 @@ to hold that amplifier on or muted from software (PCA9555 pins 0 and 2, the two 
 or camera power, are the camera resets). If you know the carrier's amplifier circuit, an issue or
 PR is welcome.
 
-## The moving bands, and why the panel runs at 68 Hz
+## The moving bands, and why the panel runs at 72 Hz
 
 At the panel's nominal 60 Hz the picture had thick, soft bands along the panel's rows (vertical
 bands when mounted landscape) that slowly drifted back and forth. They are visible on a plain
@@ -171,7 +171,8 @@ What made **no difference**:
 - camera server, fan off / full, PCA9555 pins, audio stream running, CPU fully loaded
 
 What did: **the refresh rate.** At 55 Hz the bands got much thicker. Sweeping 48–72 Hz by eye,
-72 Hz was clean and 68 Hz is what we settled on as the best-looking setting. We did not find the root cause; the same panel and timings are used on the
+72 Hz was clean. We first settled on 68 Hz, but after a longer side-by-side look 72 Hz is the
+best-looking setting and is now the default. We did not find the root cause; the same panel and timings are used on the
 UNO Q at 60 Hz, so this may well be specific to this board (or to our unit). If you know why,
 please open an issue.
 
