@@ -1,0 +1,14 @@
+[Unit]
+Description=fade the speaker output to zero at shutdown (and keep it muted until the desktop is up)
+After=sound.target lineout.service systemd-user-sessions.service gdm.service user@1000.service
+# stopped before the units above at shutdown, i.e. before the audio stack goes away
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/local/sbin/speaker-ramp down
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

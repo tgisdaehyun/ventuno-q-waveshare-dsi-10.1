@@ -1,0 +1,14 @@
+[Unit]
+Description=Fade the speaker output back in once the desktop audio is running
+After=amp-keepalive.service pipewire.service wireplumber.service
+Wants=amp-keepalive.service
+
+[Service]
+Type=oneshot
+# wait for the real sink (not the Dummy Output) and give the keep-alive signal time to wake the amplifier
+ExecStartPre=/bin/sh -c "for i in $$(seq 60); do wpctl status 2>/dev/null | grep -q \"Line Out\" && break; sleep 1; done; sleep 4"
+ExecStart=/usr/local/sbin/speaker-ramp up
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

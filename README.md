@@ -10,7 +10,7 @@ no overlay for it and its panel driver does not know the 10.1" panel. This repos
 took to make it work anyway.
 
 **Working:** picture, touch, backlight control, landscape orientation from the first boot message
-on, speakers.
+on, speakers (with a pop at boot that we could not get rid of).
 **Not working while this is installed:** HDMI output and HDMI audio, and the CAMERA0 connector
 (see [Trade-offs](#trade-offs)).
 
@@ -141,6 +141,19 @@ The carrier's speakers hang on the Line Out of the board's MAX98091 codec.
   when it wakes up. `scripts/amp-keepalive.py` + `config/amp-keepalive.service` (a systemd *user*
   service; adjust the script path) play an inaudible 20 Hz sine at -40 dBFS all the time, which
   keeps it awake. Turning the output volume far down weakens that signal too.
+- `scripts/speaker-ramp` with `config/speaker-mute.service` (system) and
+  `config/speaker-unmute.service` (user) fade the codec's line-out volume to zero at shutdown,
+  store that state, and fade it back in once the desktop audio is running, so the output is muted
+  for the whole boot.
+
+**What this achieves, honestly:** the pops between sounds during normal use are gone (the
+keep-alive signal did that). The pop at **boot is still there and still loud.** Keeping the codec
+powered removed the on/off/on cycling that can be seen in a DAPM trace, and the boot-time mute
+works as designed, but neither made much audible difference. What is left is most likely the
+amplifier itself waking up when the codec output comes up for the first time, and we found no pin
+to hold that amplifier on or muted from software (PCA9555 pins 0 and 2, the two not used for LEDs
+or camera power, are the camera resets). If you know the carrier's amplifier circuit, an issue or
+PR is welcome.
 
 ## The moving bands, and why the panel runs at 68 Hz
 

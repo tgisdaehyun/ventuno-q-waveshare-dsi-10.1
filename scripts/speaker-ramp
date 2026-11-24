@@ -1,0 +1,21 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# speaker-ramp down|up  -  fade the codec line-out volume ("Receiver Volume") to 0 / back to its
+# saved value. `down` runs at shutdown and stores the muted mixer state, so the next boot (also
+# after a power cut) restores a muted output; `up` runs once the desktop audio is running.
+CARD=monacogertrude; CTL="name=Receiver Volume"; SAVE=/var/lib/ws-dsi/receiver-volume; DEF=21
+cur() { amixer -c $CARD cget "$CTL" | sed -n "s/.*: values=\([0-9]*\).*/\1/p"; }
+set_v() { amixer -q -c $CARD cset "$CTL" "$1"; }
+case "$1" in
+down)
+  v=$(cur); [ -n "$v" ] || exit 0
+  [ "$v" -gt 0 ] && echo "$v" > "$SAVE" 2>/dev/null
+  while [ "$v" -gt 0 ]; do v=$((v-1)); set_v $v; sleep 0.02; done
+  [ "$(id -u)" = 0 ] && alsactl store
+  ;;
+up)
+  t=$(cat "$SAVE" 2>/dev/null); [ -n "$t" ] || t=$DEF
+  v=$(cur); [ -n "$v" ] || exit 0
+  while [ "$v" -lt "$t" ]; do v=$((v+1)); set_v $v; sleep 0.04; done
+  ;;
+esac
